@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>文件</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .button {
+            padding: 12px 25px;
+            margin: 10px 5px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        .button:active {
+            transform: translateY(0);
+        }
+        #fileInput {
+            padding: 10px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 5px;
+            margin-right: 10px;
+            color: #34495e;
+        }
+        .analysis-result {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background-color: #fdfdfd;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .analysis-result h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        #analyzeButton {
+            background-color: #2ecc71; /* A different color for AI button */
+        }
+        #analyzeButton:hover {
+            background-color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fddfdf;
+            border: 1px solid #e74c3c;
+            border-radius: 4px;
+        }
+        .button-container {
+            margin: 30px 0;
+            text-align: center; /* Center buttons */
+        }
+        #progressContainer {
+            margin: 25px 0;
+            display: none;
+        }
+        #progressBar {
+            height: 25px;
+            background: #e0e0e0;
+            width: 100%;
+            border-radius: 5px;
+            overflow: hidden; /* Ensures inner div respects border radius */
+        }
+        #progress {
+            height: 100%;
+            background: #3498db;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+        #progressText {
+            text-align: center;
+            margin-top: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        #result {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            display: none;
+        }
+        #result p {
+            margin: 0;
+        }
+        #fileUrl {
+            color: #2980b9;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        #fileUrl:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文件上传</h1>
+        <div class="button-container">
+            <input type="file" id="fileInput" accept="image/*" />
+            <button class="button" onclick="uploadFile()">上传</button>
+            <button class="button" onclick="analyzeFile()" id="analyzeButton" style="display: none;">AI解读图片</button>
+        </div>
+
+        <div id="progressContainer" style="margin: 20px 0; display: none;">
+            <div id="progressBar" style="height: 20px; background: #eee; width: 100%;">
+                <div id="progress" style="height: 100%; background: #4CAF50; width: 0%;"></div>
+            </div>
+            <div id="progressText">0%</div>
+        </div>
+
+        <div id="result" style="margin-top: 20px; display: none;">
+            <p>文件URL: <a id="fileUrl" href="" target="_blank"></a></p>
+        </div>
+
+        <div id="analysisResult" class="analysis-result">
+            <h3>AI分析结果：</h3>
+            <div id="analysisContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentFileUrl = '';
+
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('请选择一个文件');
+                return;
+            }
+
+            // 重置所有显示状态
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('analyzeButton').style.display = 'none';
+            document.getElementById('analysisResult').style.display = 'none';
+            document.getElementById('progress').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            document.getElementById('analysisContent').textContent = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+            
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    document.getElementById('progress').style.width = percent + '%';
+                    document.getElementById('progressText').textContent = percent + '%';
+                }
+            };
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    console.log('上传成功，返回数据:', data);
+                    
+                    document.getElementById('fileUrl').href = data.url;
+                    document.getElementById('fileUrl').textContent = data.url;
+                    document.getElementById('result').style.display = 'block';
+                    
+                    if (data.url) {
+                        currentFileUrl = data.url;
+                        console.log('设置文件URL:', currentFileUrl);
+                        document.getElementById('analyzeButton').style.display = 'inline-block';
+                    } else {
+                        console.error('服务器未返回文件URL');
+                        alert('上传成功，但无法进行AI分析');
+                    }
+                } else {
+                    alert('上传失败: ' + xhr.responseText);
+                }
+            };
+            
+            xhr.onerror = function() {
+                alert('上传过程中发生错误');
+            };
+            
+            xhr.send(formData);
+        }
+
+        function analyzeFile() {
+            if (!currentFileUrl) {
+                alert('请先上传文件');
+                return;
+            }
+
+            console.log('开始分析文件，URL:', currentFileUrl);
+            document.getElementById('analysisResult').style.display = 'block';
+            document.getElementById('analysisContent').textContent = '正在分析图片内容...';
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fileUrl: currentFileUrl
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('分析结果:', data);
+                if (data.success) {
+                    document.getElementById('analysisContent').textContent = data.analysis;
+                } else {
+                    document.getElementById('analysisContent').innerHTML = 
+                        '<div class="error">分析失败：' + data.error + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('分析请求失败:', error);
+                document.getElementById('analysisContent').innerHTML = 
+                    '<div class="error">分析过程中发生错误：' + error.message + '</div>';
+            });
+        }
+    </script>
+</body>
+</html>
